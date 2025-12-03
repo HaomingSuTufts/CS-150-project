@@ -2,8 +2,8 @@
 # Project Title: Graph Inpainting with Diffusion Models: A Comparative Study of Conditional GDSS and GGDiff-Style Optimal Control
 ## Team Members
 - Haoming Su
-- Hyun SU
--Zejia You
+- HyunS Lee
+- Zejia You
 
 ## Motivation
 Many real-world graphs suffer from missing corrupted or coarsed-grained structures, which can significantly impact the performance of graph-based machine learning models. Graph inpainting aims to recover these missing parts, enhancing the quality and utility of graph data. Recent advancements in diffusion models, particularly Conditional GDSS and GGDiff-Style Optimal Control, have shown promise in various generative tasks. This project seeks to explore and compare these two approaches for graph inpainting, providing insights into their effectiveness and potential applications.
@@ -50,4 +50,5 @@ To simulate missing or corrupted graph structures, we will apply the following c
 
 ## References
 - [GDSS Paper](https://arxiv.org/pdf/2202.02514)
+
 - [GGDiff Paper](https://arxiv.org/pdf/2505.19685)
