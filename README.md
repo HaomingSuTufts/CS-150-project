@@ -16,9 +16,8 @@ We aim to explore how information, signals, or particles diffuse across network 
 - `docs/` → Additional notes, references, and reports.
 
 ## 📦 Requirements
-- Python 3.9+
-- Common libraries: `numpy`, `networkx`, `matplotlib`, `scipy`
-- (Optional) `rdkit`, `openeye`, or other chemistry/graph toolkits if needed
+- Python 3.13
+- Common libraries: `numpy`, `networkx`, `matplotlib`, `scipy`, 'pytorch'
 
 Install dependencies:
 ```bash
