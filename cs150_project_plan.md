@@ -2,7 +2,7 @@
 # Project Title: Graph Inpainting with Diffusion Models: A Comparative Study of Conditional GDSS and GGDiff-Style Optimal Control
 ## Team Members
 - Haoming Su
-- HyunS Lee
+- HyunSu Lee
 - Zejia You
 
 ## Motivation
@@ -52,3 +52,4 @@ To simulate missing or corrupted graph structures, we will apply the following c
 - [GDSS Paper](https://arxiv.org/pdf/2202.02514)
 
 - [GGDiff Paper](https://arxiv.org/pdf/2505.19685)
+
