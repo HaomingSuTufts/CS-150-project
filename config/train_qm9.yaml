@@ -1,0 +1,60 @@
+# Training Configuration for QM9 Dataset
+# This config is used for training the GDSS model from scratch
+
+data:
+  data: QM9 # Dataset name: QM9, ZINC250k, etc.
+  dir: "./data" # Data directory
+  batch_size: 1024 # Training batch size
+  max_node_num: 9 # Maximum number of nodes (QM9 specific)
+  max_feat_num: 4 # Maximum number of node features
+  init: atom # Initialization method
+
+train:
+  name: gdss_qm9_training # Experiment name
+  num_epochs: 3000 # Total training epochs
+  lr: 0.001 # Learning rate
+  lr_schedule: True # Use learning rate scheduling
+  lr_decay: 0.999 # LR decay factor per epoch
+  ema: 0.999 # Exponential moving average decay
+  weight_decay: 0.0 # Weight decay (L2 regularization)
+  reduce_mean: False # How to reduce loss (mean vs sum)
+  eps: 1.0e-5 # Small epsilon for numerical stability
+  grad_clip: 1.0 # Gradient clipping threshold
+
+sde:
+  x:
+    type: VPSDE # SDE type for node features: VPSDE, VESDE, subVPSDE
+    beta_min: 0.1 # Minimum noise schedule beta
+    beta_max: 20.0 # Maximum noise schedule beta
+    num_scales: 1000 # Number of diffusion steps
+  adj:
+    type: VPSDE # SDE type for adjacency matrix
+    beta_min: 0.1
+    beta_max: 20.0
+    num_scales: 1000
+
+model:
+  x:
+    type: ScoreNetworkX # Model architecture for node features
+    depth: 3 # Number of GNN layers
+    nhid: 128 # Hidden dimension
+    num_linears: 3 # Number of linear layers in MLP
+    c_init: 2 # Initial channels
+    c_hid: 8 # Hidden channels
+    c_final: 4 # Final channels
+    adim: 32 # Attention dimension
+    num_heads: 4 # Number of attention heads
+    conv: "GCN" # Convolution type: GCN, GIN, etc.
+  adj:
+    type: ScoreNetworkA # Model architecture for adjacency
+    depth: 3
+    nhid: 128
+    num_linears: 3
+    c_init: 2
+    c_hid: 8
+    c_final: 4
+    adim: 32
+    num_heads: 4
+    conv: "GCN"
+
+seed: 42 # Random seed for reproducibility

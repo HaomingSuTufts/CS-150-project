@@ -1,10 +1,14 @@
 from torch.utils.data import TensorDataset, DataLoader
-from data.data_generators import load_dataset
-from utils.graph_utils import init_features, graphs_to_tensor
+
+try:
+    from data.data_generators import load_dataset
+except ImportError:
+    # data module not found - may need to be installed separately or created
+    load_dataset = None
+from .graph_utils import init_features, graphs_to_tensor
 
 
 def graphs_to_dataloader(config, graph_list):
-
     adjs_tensor = graphs_to_tensor(graph_list, config.data.max_node_num)
     x_tensor = init_features(config.data.init, adjs_tensor, config.data.max_feat_num)
 
@@ -20,4 +24,6 @@ def dataloader(config, get_graph_list=False):
     if get_graph_list:
         return train_graph_list, test_graph_list
 
-    return graphs_to_dataloader(config, train_graph_list), graphs_to_dataloader(config, test_graph_list)
+    return graphs_to_dataloader(config, train_graph_list), graphs_to_dataloader(
+        config, test_graph_list
+    )

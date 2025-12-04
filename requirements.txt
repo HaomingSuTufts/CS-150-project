@@ -1,0 +1,10 @@
+torch
+numpy
+scipy
+pandas
+networkx
+rdkit
+matplotlib
+tqdm
+pyyaml
+easydict

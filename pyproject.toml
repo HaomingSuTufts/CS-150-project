@@ -1,0 +1,21 @@
+[project]
+name = "cs-150-project"
+version = "0.1.0"
+description = "Diffusion processes on graphs for graph reconstruction"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "torch",
+    "numpy",
+    "scipy",
+    "pandas",
+    "networkx",
+    "rdkit",
+    "matplotlib",
+    "tqdm",
+    "pyyaml",
+    "easydict",
+    "jupyterlab>=4.5.0",
+    "scikit-learn>=1.7.2",
+    "dill>=0.4.0",
+]
