@@ -25,6 +25,7 @@ from gdss.utils.loader import (
     load_seed,
     load_model_from_ckpt,
     load_model_optimizer,
+    load_model_params,
 )
 from gdss.core.losses import get_sde_loss_fn
 from gdss.utils.ema import ExponentialMovingAverage
@@ -77,9 +78,10 @@ def train_epoch(
         optimizer_adj.step()
 
         # Update EMA
-        if config.train.ema > 0:
-            ema_x.update()
-            ema_adj.update()
+        if ema_x is not None:
+            ema_x.update(model_x.parameters())
+        if ema_adj is not None:
+            ema_adj.update(model_adj.parameters())
 
         # Track losses
         total_loss += loss.item()
@@ -111,6 +113,8 @@ def save_checkpoint(
     ema_adj,
     config,
     checkpoint_dir,
+    params_x=None,
+    params_adj=None,
     prefix="checkpoint",
 ):
     """Save model checkpoint"""
@@ -121,8 +125,8 @@ def save_checkpoint(
     checkpoint = {
         "epoch": epoch,
         "config": config,
-        "params_x": config.model.x,
-        "params_adj": config.model.adj,
+        "params_x": params_x if params_x is not None else config.model.x,
+        "params_adj": params_adj if params_adj is not None else config.model.adj,
         "x_state_dict": model_x.state_dict(),
         "adj_state_dict": model_adj.state_dict(),
         "optimizer_x": optimizer_x.state_dict(),
@@ -172,9 +176,12 @@ def train(config):
 
     # Load models and optimizers
     logger.log("Initializing models...")
-    model_x, optimizer_x = load_model_optimizer(config.model.x, config.train, device)
-    model_adj, optimizer_adj = load_model_optimizer(
-        config.model.adj, config.train, device
+    params_x, params_adj = load_model_params(config)
+    model_x, optimizer_x, scheduler_x = load_model_optimizer(
+        params_x, config.train, device
+    )
+    model_adj, optimizer_adj, scheduler_adj = load_model_optimizer(
+        params_adj, config.train, device
     )
 
     # Count parameters
@@ -243,6 +250,8 @@ def train(config):
                 ema_adj,
                 config,
                 checkpoint_dir,
+                params_x=params_x,
+                params_adj=params_adj,
                 prefix=config.train.name,
             )
 
@@ -259,6 +268,8 @@ def train(config):
                 ema_adj,
                 config,
                 checkpoint_dir,
+                params_x=params_x,
+                params_adj=params_adj,
                 prefix=f"{config.train.name}_best",
             )
             logger.log(f"New best model saved with loss={best_loss:.4f}")
@@ -274,6 +285,8 @@ def train(config):
         ema_adj,
         config,
         checkpoint_dir,
+        params_x=params_x,
+        params_adj=params_adj,
         prefix=f"{config.train.name}_final",
     )
 
