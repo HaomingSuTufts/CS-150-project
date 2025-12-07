@@ -23,12 +23,12 @@ train:
 
 sde:
   x:
-    type: VPSDE # SDE type for node features: VPSDE, VESDE, subVPSDE
+    type: VP # SDE type for node features: VP, VE, subVP
     beta_min: 0.1 # Minimum noise schedule beta
     beta_max: 20.0 # Maximum noise schedule beta
     num_scales: 1000 # Number of diffusion steps
   adj:
-    type: VPSDE # SDE type for adjacency matrix
+    type: VP # SDE type for adjacency matrix
     beta_min: 0.1
     beta_max: 20.0
     num_scales: 1000

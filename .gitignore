@@ -1,1 +1,10 @@
 .venv/
+__pycache__/
+src/gdss/__pycache__/
+src/gdss/models/__pycache__/
+src/gdss/core/__pycache__/
+src/gdss/evaluation/__pycache__/
+src/gdss/parsers/__pycache__/
+src/gdss/prodigy/__pycache__/
+src/gdss/utils/__pycache__/
+data/qm9_kekulized.npz

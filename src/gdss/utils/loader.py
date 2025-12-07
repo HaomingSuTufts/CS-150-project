@@ -43,6 +43,12 @@ def load_device():
 def load_model(params):
     params_ = params.copy()
     model_type = params_.pop("model_type", None)
+    # Normalize model_type to a string if a nested dict/EasyDict is passed
+    if not isinstance(model_type, str):
+        if hasattr(model_type, "type"):
+            model_type = getattr(model_type, "type")
+        elif isinstance(model_type, dict):
+            model_type = model_type.get("type") or model_type.get("model_type")
     if model_type == "ScoreNetworkX":
         model = ScoreNetworkX(**params_)
     elif model_type == "ScoreNetworkX_GMH":
@@ -86,11 +92,11 @@ def load_ema_from_ckpt(model, ema_state_dict, decay=0.999):
 
 def load_data(config, get_graph_list=False):
     if config.data.data in ["QM9", "ZINC250k"]:
-        from utils.data_loader_mol import dataloader
+        from ..utils.data_loader_mol import dataloader
 
         return dataloader(config, get_graph_list)
     else:
-        from utils.data_loader import dataloader
+        from ..utils.data_loader import dataloader
 
         return dataloader(config, get_graph_list)
 
@@ -140,40 +146,79 @@ def load_model_params(config):
     config_m = config.model
     max_feat_num = config.data.max_feat_num
 
-    if "GMH" in config_m.x:
+    def _get(k, side=None, default=None):
+        # side: 'x' or 'adj', try top-level, then side-level
+        if hasattr(config_m, k):
+            return getattr(config_m, k)
+        if side is not None and hasattr(config_m, side):
+            side_cfg = getattr(config_m, side)
+            # side_cfg might be dict-like or EasyDict
+            if hasattr(side_cfg, k):
+                return getattr(side_cfg, k)
+            try:
+                return side_cfg[k]
+            except Exception:
+                pass
+        return default
+
+    def _extract_type(val):
+        # Return a string name for model type whether val is str, object with .type/.model_type, or dict-like
+        if isinstance(val, str):
+            return val
+        if hasattr(val, "type"):
+            return getattr(val, "type")
+        if hasattr(val, "model_type"):
+            return getattr(val, "model_type")
+        if isinstance(val, dict):
+            return val.get("type") or val.get("model_type")
+        return None
+
+    model_x_type = _extract_type(getattr(config_m, "x", None))
+    if model_x_type is None:
+        model_x_type = getattr(config_m, "x", None)
+
+    if model_x_type and "GMH" in str(model_x_type):
         params_x = {
-            "model_type": config_m.x,
+            "model_type": model_x_type,
             "max_feat_num": max_feat_num,
-            "depth": config_m.depth,
-            "nhid": config_m.nhid,
-            "num_linears": config_m.num_linears,
-            "c_init": config_m.c_init,
-            "c_hid": config_m.c_hid,
-            "c_final": config_m.c_final,
-            "adim": config_m.adim,
-            "num_heads": config_m.num_heads,
-            "conv": config_m.conv,
+            "depth": _get("depth", side="x"),
+            "nhid": _get("nhid", side="x"),
+            "num_linears": _get("num_linears", side="x"),
+            "c_init": _get("c_init", side="x"),
+            "c_hid": _get("c_hid", side="x"),
+            "c_final": _get("c_final", side="x"),
+            "adim": _get("adim", side="x"),
+            "num_heads": _get("num_heads", side="x"),
+            "conv": _get("conv", side="x"),
         }
     else:
         params_x = {
             "model_type": config_m.x,
             "max_feat_num": max_feat_num,
-            "depth": config_m.depth,
-            "nhid": config_m.nhid,
+            "depth": _get("depth", side="x", default=_get("depth")),
+            "nhid": _get("nhid", side="x", default=_get("nhid")),
         }
+    model_adj_type = _extract_type(getattr(config_m, "adj", None))
+    if model_adj_type is None:
+        model_adj_type = getattr(config_m, "adj", None)
+
     params_adj = {
-        "model_type": config_m.adj,
+        "model_type": model_adj_type,
         "max_feat_num": max_feat_num,
         "max_node_num": config.data.max_node_num,
-        "nhid": config_m.nhid,
-        "num_layers": config_m.num_layers,
-        "num_linears": config_m.num_linears,
-        "c_init": config_m.c_init,
-        "c_hid": config_m.c_hid,
-        "c_final": config_m.c_final,
-        "adim": config_m.adim,
-        "num_heads": config_m.num_heads,
-        "conv": config_m.conv,
+        "nhid": _get("nhid", side="adj", default=_get("nhid", default=None)),
+        "num_layers": _get(
+            "num_layers",
+            side="adj",
+            default=_get("depth", side="adj", default=_get("depth")),
+        ),
+        "num_linears": _get("num_linears", side="adj"),
+        "c_init": _get("c_init", side="adj"),
+        "c_hid": _get("c_hid", side="adj"),
+        "c_final": _get("c_final", side="adj"),
+        "adim": _get("adim", side="adj"),
+        "num_heads": _get("num_heads", side="adj"),
+        "conv": _get("conv", side="adj"),
     }
     return params_x, params_adj
 
