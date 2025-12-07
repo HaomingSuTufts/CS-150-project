@@ -22,3 +22,14 @@ We aim to explore how information, signals, or particles diffuse across network 
 Install dependencies:
 ```bash
 pip install -r requirements.txt
+
+
+## Generation (sampling)
+
+Use `generation.py` to load a trained checkpoint and generate new graphs.
+
+Example (CPU):
+
+	python generation.py --dataset QM9 --ckpt gdss_qm9_training_best_epoch_802 --n_samples 16 --device cpu --seed 42
+
+This will write generated graphs and SMILES (if applicable) to `samples/<DATASET>/<CKPT>/`.
