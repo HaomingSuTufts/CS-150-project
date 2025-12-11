@@ -93,3 +93,154 @@ def get_sde_loss_fn(
         return torch.mean(losses_x), torch.mean(losses_adj)
 
     return loss_fn
+
+
+def get_sde_loss_fn_conditioned(
+    sde_x,
+    sde_adj,
+    train=True,
+    reduce_mean=False,
+    continuous=True,
+    likelihood_weighting=False,
+    eps=1e-5,
+):
+    """
+    SDE loss function for *conditional* training on partial graphs.
+
+    Args:
+        sde_x, sde_adj: SDEs for node features and adjacency.
+        train, reduce_mean, continuous, likelihood_weighting, eps:
+            Same semantics as in get_sde_loss_fn.
+
+    Returns:
+        loss_fn(model_x, model_adj, x, adj, node_mask=None, mask_adj=None)
+    """
+    reduce_op = (
+        torch.mean
+        if reduce_mean
+        else lambda *args, **kwargs: 0.5 * torch.sum(*args, **kwargs)
+    )
+
+    def loss_fn(model_x, model_adj, x, adj, node_mask=None, mask_adj=None):
+        """
+        Args:
+            x:          (B, N, F)     node features
+            adj:        (B, N, N) or (B, C, N, N)   adjacency
+            node_mask:  (B, N) or (B, N, 1), 1 = unknown, 0 = observed
+            mask_adj:   broadcastable to adj shape, 1 = unknown, 0 = observed
+        """
+        score_fn_x = get_score_fn(sde_x, model_x, train=train, continuous=continuous)
+        score_fn_adj = get_score_fn(
+            sde_adj, model_adj, train=train, continuous=continuous
+        )
+
+        # Sample random t in (eps, T]
+        t = torch.rand(adj.shape[0], device=adj.device) * (sde_adj.T - eps) + eps
+        flags = node_flags(adj)
+
+        # ---- Forward diffusion (same as original loss) ----
+        # Node features
+        z_x = gen_noise(x, flags, sym=False)
+        mean_x, std_x = sde_x.marginal_prob(x, t)
+        perturbed_x = mean_x + std_x[:, None, None] * z_x
+        perturbed_x = mask_x(perturbed_x, flags)
+
+        # Adjacency
+        z_adj = gen_noise(adj, flags, sym=True)
+        mean_adj, std_adj = sde_adj.marginal_prob(adj, t)
+        perturbed_adj = mean_adj + std_adj[:, None, None] * z_adj
+        perturbed_adj = mask_adjs(perturbed_adj, flags)
+
+        # ---- Build conditional node features x_cond ----
+        # node_mask: 0 = observed, 1 = unknown
+        if node_mask is not None:
+            if node_mask.dim() == 2:
+                node_mask_exp = node_mask.unsqueeze(-1)  # (B, N, 1)
+            else:
+                node_mask_exp = node_mask  # assume already (B, N, 1)
+
+            # clean observed x: keep x on observed nodes, 0 elsewhere
+            x_obs = x * (1.0 - node_mask_exp)
+
+            # concatenate [noisy x_t, clean observed x, mask]
+            x_cond = torch.cat([perturbed_x, x_obs, node_mask_exp], dim=-1)
+        else:
+            node_mask_exp = None
+            x_cond = perturbed_x
+
+        # ---- Adjacency conditioning (light version) ----
+        adj_cond = perturbed_adj
+
+        # ---- Scores ----
+        score_x = score_fn_x(x_cond, adj_cond, flags, t)
+        score_adj = score_fn_adj(x_cond, adj_cond, flags, t)
+
+        # ---- Losses (only on unknown regions if masks are given) ----
+        if not likelihood_weighting:
+            # Node loss
+            losses_x = torch.square(score_x * std_x[:, None, None] + z_x)
+            if node_mask_exp is not None:
+                # 1 = unknown -> train there
+                losses_x = losses_x * node_mask_exp
+                # Optional: normalize by number of unknown entries to stabilize scale
+                denom_x = node_mask_exp.sum(dim=[1, 2]).clamp_min(1.0)
+                losses_x = (
+                    reduce_op(losses_x.reshape(losses_x.shape[0], -1), dim=-1) / denom_x
+                )
+            else:
+                losses_x = reduce_op(losses_x.reshape(losses_x.shape[0], -1), dim=-1)
+
+            # Edge loss
+            losses_adj = torch.square(score_adj * std_adj[:, None, None] + z_adj)
+            if mask_adj is not None:
+                # 1 = unknown edges
+                losses_adj = losses_adj * mask_adj
+                denom_a = mask_adj.sum(dim=list(range(1, mask_adj.dim()))).clamp_min(
+                    1.0
+                )
+                losses_adj = (
+                    reduce_op(losses_adj.reshape(losses_adj.shape[0], -1), dim=-1)
+                    / denom_a
+                )
+            else:
+                losses_adj = reduce_op(
+                    losses_adj.reshape(losses_adj.shape[0], -1), dim=-1
+                )
+
+        else:
+            # Likelihood-weighted version
+            g2_x = sde_x.sde(torch.zeros_like(x), t)[1] ** 2
+            g2_adj = sde_adj.sde(torch.zeros_like(adj), t)[1] ** 2
+
+            # Node loss
+            losses_x = torch.square(score_x + z_x / std_x[:, None, None])
+            if node_mask_exp is not None:
+                losses_x = losses_x * node_mask_exp
+                denom_x = node_mask_exp.sum(dim=[1, 2]).clamp_min(1.0)
+                losses_x = (
+                    reduce_op(losses_x.reshape(losses_x.shape[0], -1), dim=-1) / denom_x
+                )
+            else:
+                losses_x = reduce_op(losses_x.reshape(losses_x.shape[0], -1), dim=-1)
+            losses_x = losses_x * g2_x
+
+            # Edge loss
+            losses_adj = torch.square(score_adj + z_adj / std_adj[:, None, None])
+            if mask_adj is not None:
+                losses_adj = losses_adj * mask_adj
+                denom_a = mask_adj.sum(dim=list(range(1, mask_adj.dim()))).clamp_min(
+                    1.0
+                )
+                losses_adj = (
+                    reduce_op(losses_adj.reshape(losses_adj.shape[0], -1), dim=-1)
+                    / denom_a
+                )
+            else:
+                losses_adj = reduce_op(
+                    losses_adj.reshape(losses_adj.shape[0], -1), dim=-1
+                )
+            losses_adj = losses_adj * g2_adj
+
+        return torch.mean(losses_x), torch.mean(losses_adj)
+
+    return loss_fn

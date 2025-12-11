@@ -9,10 +9,10 @@ Baseline idea:
 Condition file format:
     {
         "x_obs":    float32 array [B, N, F],
-        "adj_obs":  float32 or int array [B, N, N],
+        "adj_obs":  float32 or int array [B, N, N]  OR  [B, C, N, N],
         "mask_x":   float32 array [B, N] or [B, N, 1] or [B, N, F]
                     (1 = unknown / to inpaint, 0 = known),
-        "mask_adj": float32 array [B, N, N]
+        "mask_adj": float32 array [B, N, N]  OR  [B, C, N, N]
                     (1 = unknown / to inpaint, 0 = known),
         # optional:
         "flags":    float32 array [B, N, N] (node flags for padding)
@@ -170,10 +170,59 @@ def load_condition_file(cond_path, device):
     if flags is not None:
         flags = to_tensor("flags").float()
 
-    # Move later to device batch-wise; here just sanity check shapes
+    # Move later to device batch-wise; here just sanity check shapes and
+    # normalize adjacency/mask across channel dim if needed (store as single-channel)
     B, N, F = x_obs.shape
-    assert adj_obs.shape[:2] == (B, N)
-    assert mask_adj.shape[:2] == (B, N)
+
+    # adj_obs and mask_adj may be either:
+    #   - (B, N, N)
+    #   - (B, C, N, N)
+    # Normalize channel dims when possible and check last two dims match (N,N)
+    def _ensure_adj_mask_compat(adj, mask):
+        # Both adj and mask should have the same number of dims; try to reconcile
+        if adj.dim() == 3 and mask.dim() == 4:
+            # mask has channel dim but adj does not: add singleton channel to adj
+            adj = adj.unsqueeze(1)
+        elif adj.dim() == 4 and mask.dim() == 3:
+            # adj has channel dim, mask does not: add channel dim to mask
+            mask = mask.unsqueeze(1)
+        return adj, mask
+
+    # If mask_adj isn't the same dim/shape as adj_obs, try to reconcile
+    try:
+        # If mask_adj is missing a channel but adj_obs has one, or vice versa, fix
+        if adj_obs.dim() != mask_adj.dim():
+            adj_obs, mask_adj = _ensure_adj_mask_compat(adj_obs, mask_adj)
+    except Exception:
+        pass
+
+    # Normalize channel-dimension: prefer single-channel adj/mask (B, N, N)
+    if adj_obs.dim() == 4:
+        if adj_obs.shape[1] == 1:
+            adj_obs = adj_obs.squeeze(1)
+        else:
+            # Collapse multi-channel adjacency to single-channel by argmax
+            adj_obs = torch.argmax(adj_obs, dim=1).float()
+    if mask_adj.dim() == 4:
+        if mask_adj.shape[1] == 1:
+            mask_adj = mask_adj.squeeze(1)
+        else:
+            # Collapse mask across channel dim: edge is observed (0) if any channel is observed
+            mask_adj = torch.min(mask_adj, dim=1)[0]
+
+    # Validate shapes: batch size and node dims should match
+    assert adj_obs.shape[0] == B, (
+        f"adj_obs batch size {adj_obs.shape[0]} != x_obs batch {B}"
+    )
+    assert adj_obs.shape[-2:] == (N, N), (
+        f"adj_obs last two dims {adj_obs.shape[-2:]} != (N,N)"
+    )
+    assert mask_adj.shape[0] == B, (
+        f"mask_adj batch size {mask_adj.shape[0]} != x_obs batch {B}"
+    )
+    assert mask_adj.shape[-2:] == (N, N), (
+        f"mask_adj last two dims {mask_adj.shape[-2:]} != (N,N)"
+    )
 
     return x_obs, adj_obs, mask_x, mask_adj, flags
 
@@ -360,6 +409,9 @@ def main():
     n_batches = int(np.ceil(num_target / batch_size))
     gen_graphs = []
     gen_smiles = []
+    # Per-generated-sample condition mapping: list of dicts with original
+    # condition details for each generated output (x_obs, adj_obs, mask_x, mask_adj, flags)
+    gen_conditions = []
 
     logger.log(
         f"Starting inpainting on {num_target} conditional graphs "
@@ -369,7 +421,8 @@ def main():
     for b in range(n_batches):
         start = b * batch_size
         end = min(num_target, (b + 1) * batch_size)
-        cur_batch = end - start
+        # size of current batch
+        _cur_batch = end - start
 
         x_obs_b = x_obs_all[start:end].to(device_id)
         adj_obs_b = adj_obs_all[start:end].to(device_id)
@@ -453,7 +506,9 @@ def main():
                 adj_samples_mod, num_classes=4
             ).permute(0, 3, 1, 2)
 
-            gen_mols, _ = gen_mol(x_samples_oh, adj_onehot, configt.data.data)
+            gen_mols, _, mol_indices = gen_mol(
+                x_samples_oh, adj_onehot, configt.data.data
+            )
             if len(gen_mols) == 0:
                 logger.log(
                     "[Batch {b+1}] No molecules from thresholded features; "
@@ -463,10 +518,34 @@ def main():
                 x_arg = torch.nn.functional.one_hot(
                     class_idx_raw, num_classes=x_samples.shape[-1]
                 ).to(dtype=torch.float32)
-                gen_mols, _ = gen_mol(x_arg, adj_onehot, configt.data.data)
+                gen_mols, _, mol_indices = gen_mol(x_arg, adj_onehot, configt.data.data)
 
             gen_graph_list = mols_to_nx(gen_mols)
             gen_smiles_batch = mols_to_smiles(gen_mols)
+
+            # Map generated mols to their original input indices (may be shorter if some failed)
+            for rel_idx in mol_indices:
+                abs_idx = start + int(rel_idx)
+                gen_conditions.append(
+                    {
+                        "orig_idx": int(abs_idx),
+                        "x_obs": x_obs_all[abs_idx].detach().cpu().numpy(),
+                        "adj_obs": adj_obs_all[abs_idx].detach().cpu().numpy(),
+                        "mask_x": mask_x_all[abs_idx].detach().cpu().numpy()
+                        if mask_x_all is not None
+                        else None,
+                        "mask_adj": mask_adj_all[abs_idx].detach().cpu().numpy()
+                        if mask_adj_all is not None
+                        else None,
+                        "flags": flags_all[abs_idx].detach().cpu().numpy()
+                        if flags_all is not None
+                        else None,
+                    }
+                )
+            logger.log(
+                f"[Batch {b + 1}] Mapped {len(mol_indices)} generated molecules to original conditions (batch range {start}:{end})"
+            )
+
             gen_smiles_batch = [smi for smi in gen_smiles_batch if len(smi)]
             logger.log(
                 f"[Batch {b + 1}] Inpainted molecules: {len(gen_mols)}; "
@@ -478,6 +557,29 @@ def main():
             samples_int = quantize(adj_samples)
             gen_graph_list = adjs_to_graphs(samples_int, True)
             gen_graphs.extend(gen_graph_list)
+            # For non-molecule datasets, graphs are returned one-per-input sample
+            # so maintain a corresponding conditions entry per generated graph
+            for rel_idx in range(len(gen_graph_list)):
+                abs_idx = start + int(rel_idx)
+                gen_conditions.append(
+                    {
+                        "orig_idx": int(abs_idx),
+                        "x_obs": x_obs_all[abs_idx].detach().cpu().numpy(),
+                        "adj_obs": adj_obs_all[abs_idx].detach().cpu().numpy(),
+                        "mask_x": mask_x_all[abs_idx].detach().cpu().numpy()
+                        if mask_x_all is not None
+                        else None,
+                        "mask_adj": mask_adj_all[abs_idx].detach().cpu().numpy()
+                        if mask_adj_all is not None
+                        else None,
+                        "flags": flags_all[abs_idx].detach().cpu().numpy()
+                        if flags_all is not None
+                        else None,
+                    }
+                )
+            logger.log(
+                f"[Batch {b + 1}] Mapped {len(gen_graph_list)} generated graphs to original conditions (batch range {start}:{end})"
+            )
 
         logger.log(
             f"Inpainted batch {b + 1}/{n_batches} - total graphs so far: {len(gen_graphs)}"
@@ -488,7 +590,10 @@ def main():
     os.makedirs(save_dir, exist_ok=True)
     output_name = f"{log_name}_{config.ckpt}_{num_target}.pkl"
     with open(os.path.join(save_dir, output_name), "wb") as f:
-        pickle.dump({"graphs": gen_graphs, "smiles": gen_smiles}, f)
+        pickle.dump(
+            {"graphs": gen_graphs, "smiles": gen_smiles, "conditions": gen_conditions},
+            f,
+        )
     logger.log(
         f"Saved {len(gen_graphs)} inpainted graphs to "
         f"{os.path.join(save_dir, output_name)}"

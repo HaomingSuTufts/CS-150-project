@@ -321,7 +321,7 @@ def main():
             ).permute(0, 3, 1, 2)
             # Try generating molecules. If we get zero molecules, try a fallback
             # using the argmax approach directly on the raw network outputs (no threshold)
-            gen_mols, _ = gen_mol(x_samples, adj_onehot, configt.data.data)
+            gen_mols, _, _ = gen_mol(x_samples, adj_onehot, configt.data.data)
             if len(gen_mols) == 0:
                 logger.log(
                     "No molecules generated from thresholded features; trying argmax fallback."
@@ -331,7 +331,7 @@ def main():
                 x_arg = torch.nn.functional.one_hot(
                     class_idx_raw, num_classes=x_samples.shape[-1]
                 ).to(dtype=torch.float32)
-                gen_mols, _ = gen_mol(x_arg, adj_onehot, configt.data.data)
+                gen_mols, _, _ = gen_mol(x_arg, adj_onehot, configt.data.data)
             gen_graph_list = mols_to_nx(gen_mols)
             gen_smiles_batch = mols_to_smiles(gen_mols)
             gen_smiles_batch = [smi for smi in gen_smiles_batch if len(smi)]
