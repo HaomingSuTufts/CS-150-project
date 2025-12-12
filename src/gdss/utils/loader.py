@@ -4,11 +4,11 @@ import numpy as np
 import yaml
 from easydict import EasyDict as edict
 
-from ..models.ScoreNetwork_A import ScoreNetworkA
-from ..models.ScoreNetwork_X import ScoreNetworkX, ScoreNetworkX_GMH
+from ..models.ScoreNetwork_A import ScoreNetworkA, ScoreNetworkACond
+from ..models.ScoreNetwork_X import ScoreNetworkX, ScoreNetworkX_GMH, ScoreNetworkXCond
 from ..core.sde import VPSDE, VESDE, subVPSDE
 
-from ..core.losses import get_sde_loss_fn
+from ..core.losses import get_sde_loss_fn, get_sde_loss_fn_conditioned
 from ..evaluation.mmd import gaussian, gaussian_emd
 from .ema import ExponentialMovingAverage
 
@@ -55,6 +55,10 @@ def load_model(params):
         model = ScoreNetworkX_GMH(**params_)
     elif model_type == "ScoreNetworkA":
         model = ScoreNetworkA(**params_)
+    elif model_type == "ScoreNetworkACond":
+        model = ScoreNetworkACond(**params_)
+    elif model_type == "ScoreNetworkXCond":
+        model = ScoreNetworkXCond(**params_)
     else:
         raise ValueError(f"Model Name <{model_type}> is Unknown")
     return model
@@ -129,8 +133,23 @@ def load_loss_fn(config):
     reduce_mean = config.train.reduce_mean
     sde_x = load_sde(config.sde.x)
     sde_adj = load_sde(config.sde.adj)
-
     loss_fn = get_sde_loss_fn(
+        sde_x,
+        sde_adj,
+        train=True,
+        reduce_mean=reduce_mean,
+        continuous=True,
+        likelihood_weighting=False,
+        eps=config.train.eps,
+    )
+    return loss_fn
+
+
+def load_loss_fn_conditioned(config):
+    reduce_mean = config.train.reduce_mean
+    sde_x = load_sde(config.sde.x)
+    sde_adj = load_sde(config.sde.adj)
+    loss_fn = get_sde_loss_fn_conditioned(
         sde_x,
         sde_adj,
         train=True,
@@ -191,6 +210,16 @@ def load_model_params(config):
             "num_heads": _get("num_heads", side="x"),
             "conv": _get("conv", side="x"),
         }
+    elif model_x_type == "ScoreNetworkXCond":
+        orig_feat_num = _get("orig_feat_num", side="x")
+        cond_feat_num = _get("cond_feat_num", side="x")
+        params_x = {
+            "model_type": model_x_type,
+            "orig_feat_num": orig_feat_num,
+            "cond_feat_num": cond_feat_num,
+            "depth": _get("depth", side="x", default=_get("depth")),
+            "nhid": _get("nhid", side="x", default=_get("nhid")),
+        }
     else:
         params_x = {
             "model_type": config_m.x,
@@ -202,9 +231,25 @@ def load_model_params(config):
     if model_adj_type is None:
         model_adj_type = getattr(config_m, "adj", None)
 
+    # If the adjacency model is a conditional variant, prefer cond_feat_num as its
+    # input feature dimension to match the conditioned x passed to it at runtime.
+    if model_adj_type and "Cond" in str(model_adj_type):
+        # Prefer an explicit cond_feat_num if provided; otherwise, allow
+        # an adj-side max_feat_num override (some configs set adj.max_feat_num
+        # directly to the conditioned feature dim) or fallback to the global
+        # max_feat_num defined for the dataset. This ensures the GNN layers
+        # are constructed with the actual input feature dimension.
+        cond_feat_num_adj = (
+            _get("cond_feat_num", side="adj")
+            or _get("max_feat_num", side="adj")
+            or max_feat_num
+        )
+    else:
+        cond_feat_num_adj = _get("max_feat_num", side="adj") or max_feat_num
+
     params_adj = {
         "model_type": model_adj_type,
-        "max_feat_num": max_feat_num,
+        "max_feat_num": cond_feat_num_adj,
         "max_node_num": config.data.max_node_num,
         "nhid": _get("nhid", side="adj", default=_get("nhid", default=None)),
         "num_layers": _get(

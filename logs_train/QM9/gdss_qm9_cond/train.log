@@ -1,0 +1,65 @@
+==================================================
+Training gdss_qm9_cond
+----------------------------------------------------------------------------------------------------
+[QM9]   init=atom (4)   seed=42   batch_size=1024
+----------------------------------------------------------------------------------------------------
+lr=0.001 schedule=True ema=0.999 epochs=3000 reduce=False eps=1e-05
+(ScoreNetworkXCond)+(ScoreNetworkACond=GCN,4)   : depth=3 adim=32 nhid=128 layers=3 linears=3 c=(2 8 4)
+(x:VP)=(0.10, 20.00) N=1000 (adj:VP)=(0.10, 20.00) N=1000
+----------------------------------------------------------------------------------------------------
+==================================================
+Using device: cpu
+Loading data...
+Training batches: 105
+Setting up SDEs...
+Initializing models...
+Model X parameters: 965,718
+Model Adj parameters: 448,385
+Using EMA with decay=0.999
+Starting training...
+==================================================
+Training gdss_qm9_cond
+----------------------------------------------------------------------------------------------------
+[QM9]   init=atom (4)   seed=42   batch_size=1024
+----------------------------------------------------------------------------------------------------
+lr=0.001 schedule=True ema=0.999 epochs=3000 reduce=False eps=1e-05
+(ScoreNetworkXCond)+(ScoreNetworkACond=GCN,4)   : depth=3 adim=32 nhid=128 layers=3 linears=3 c=(2 8 4)
+(x:VP)=(0.10, 20.00) N=1000 (adj:VP)=(0.10, 20.00) N=1000
+----------------------------------------------------------------------------------------------------
+==================================================
+Using device: cpu
+Loading data...
+Training batches: 105
+Setting up SDEs...
+Initializing models...
+Model X parameters: 965,718
+Model Adj parameters: 452,225
+Using EMA with decay=0.999
+Starting training...
+==================================================
+Training gdss_qm9_cond
+----------------------------------------------------------------------------------------------------
+[QM9]   init=atom (4)   seed=42   batch_size=1024
+----------------------------------------------------------------------------------------------------
+lr=0.001 schedule=True ema=0.999 epochs=3000 reduce=False eps=1e-05
+(ScoreNetworkXCond)+(ScoreNetworkACond=GCN,4)   : depth=3 adim=32 nhid=128 layers=3 linears=3 c=(2 8 4)
+(x:VP)=(0.10, 20.00) N=1000 (adj:VP)=(0.10, 20.00) N=1000
+----------------------------------------------------------------------------------------------------
+==================================================
+Using device: cpu
+Loading data...
+Training batches: 105
+Setting up SDEs...
+Initializing models...
+Model X parameters: 965,718
+Model Adj parameters: 452,225
+Using EMA with decay=0.999
+Starting training...
+Epoch 1/3000: Loss=0.4896, Loss_X=0.3553, Loss_Adj=0.1343
+New best model saved with loss=0.4896
+Epoch 2/3000: Loss=0.3484, Loss_X=0.2643, Loss_Adj=0.0841
+New best model saved with loss=0.3484
+Epoch 3/3000: Loss=0.3333, Loss_X=0.2584, Loss_Adj=0.0749
+New best model saved with loss=0.3333
+Epoch 4/3000: Loss=0.3213, Loss_X=0.2525, Loss_Adj=0.0688
+New best model saved with loss=0.3213
