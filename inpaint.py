@@ -169,15 +169,8 @@ def load_condition_file(cond_path, device):
     flags = cond.get("flags", None)
     if flags is not None:
         flags = to_tensor("flags").float()
-
-    # Move later to device batch-wise; here just sanity check shapes and
-    # normalize adjacency/mask across channel dim if needed (store as single-channel)
     B, N, F = x_obs.shape
 
-    # adj_obs and mask_adj may be either:
-    #   - (B, N, N)
-    #   - (B, C, N, N)
-    # Normalize channel dims when possible and check last two dims match (N,N)
     def _ensure_adj_mask_compat(adj, mask):
         # Both adj and mask should have the same number of dims; try to reconcile
         if adj.dim() == 3 and mask.dim() == 4:
@@ -281,8 +274,6 @@ def main():
         device = args.device
     device_id = f"cuda:{device[0]}" if isinstance(device, list) else args.device
     config.device_id = device_id
-
-    # Load checkpoint directly (mirrors generation.py)
     path = f"./checkpoints/{config.data.data}/{config.ckpt}.pth"
     ckpt = torch.load(path, map_location=device, weights_only=False)
     print(f"{path} loaded")
@@ -319,7 +310,7 @@ def main():
     # Set seeds
     load_seed(configt.seed)
 
-    # Logging (mirrors generation.py)
+    # Logging
     log_folder_name, log_dir, _ = set_log(configt, is_train=False)
     log_name = f"{args.dataset}-inpaint"
     logger = Logger(str(os.path.join(log_dir, f"{log_name}.log")), mode="a")
