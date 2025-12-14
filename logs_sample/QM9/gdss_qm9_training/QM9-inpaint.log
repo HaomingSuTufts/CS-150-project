@@ -1,0 +1,37 @@
+QM9-inpaint
+----------------------------------------------------------------------------------------------------
+[QM9]   init=atom (4)   seed=42   batch_size=1024
+----------------------------------------------------------------------------------------------------
+(Reverse)+(Langevin): eps=0.0001 denoise=True ema=False || snr=0.2 seps=0.7 n_steps=1 
+----------------------------------------------------------------------------------------------------
+(Reverse)+(Langevin): eps=0.0001 denoise=True ema=False || snr=0.2 seps=0.7 n_steps=1 
+----------------------------------------------------------------------------------------------------
+(Reverse)+(Langevin): eps=0.0001 denoise=True ema=False || snr=0.2 seps=0.7 n_steps=1 
+----------------------------------------------------------------------------------------------------
+Starting inpainting on 128 conditional graphs (total in cond file: 128), batch_size=1024
+[Batch 1] Adj float stats: min=-0.06116373464465141, max=3.04266095161438, mean=0.29097819328308105, nan_count=0
+[Batch 1] Quantized adjacency unique values: {0: 7986, 1: 1856, 2: 412, 3: 114}; dtype=int64; min=0, max=3
+[Batch 1] Inpainted molecules: 128; SMILES: 128
+Inpainted batch 1/1 - total graphs so far: 128
+Saved 128 inpainted graphs to samples\QM9\gdss_qm9_training\QM9-inpaint_gdss_qm9_training_best_epoch_802_128.pkl
+Saved 128 SMILES to file.
+(Reverse)+(Langevin): eps=0.0001 denoise=True ema=False || snr=0.2 seps=0.7 n_steps=1 
+----------------------------------------------------------------------------------------------------
+Starting inpainting on 1 conditional graphs (total in cond file: 128), batch_size=1
+[Batch 1] Adj float stats: min=-0.03737316653132439, max=2.9977707862854004, mean=0.274758517742157, nan_count=0
+[Batch 1] Quantized adjacency unique values: {0: 65, 1: 12, 2: 2, 3: 2}; dtype=int64; min=0, max=3
+[Batch 1] Mapped 1 generated molecules to original conditions (batch range 0:1)
+[Batch 1] Inpainted molecules: 1; SMILES: 1
+Inpainted batch 1/1 - total graphs so far: 1
+Saved 1 inpainted graphs to samples\QM9\gdss_qm9_training\QM9-inpaint_gdss_qm9_training_best_epoch_802_1.pkl
+Saved 1 SMILES to file.
+(Reverse)+(Langevin): eps=0.0001 denoise=True ema=False || snr=0.2 seps=0.7 n_steps=1 
+----------------------------------------------------------------------------------------------------
+Starting inpainting on 1 conditional graphs (total in cond file: 128), batch_size=1
+[Batch 1] Adj float stats: min=-0.03737316653132439, max=2.9977707862854004, mean=0.274758517742157, nan_count=0
+[Batch 1] Quantized adjacency unique values: {0: 65, 1: 12, 2: 2, 3: 2}; dtype=int64; min=0, max=3
+[Batch 1] Mapped 1 generated molecules to original conditions (batch range 0:1)
+[Batch 1] Inpainted molecules: 1; SMILES: 1
+Inpainted batch 1/1 - total graphs so far: 1
+Saved 1 inpainted graphs to samples\QM9\gdss_qm9_training\QM9-inpaint_gdss_qm9_training_best_epoch_802_1.pkl
+Saved 1 SMILES to file.

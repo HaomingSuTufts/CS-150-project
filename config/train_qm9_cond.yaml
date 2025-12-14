@@ -1,0 +1,70 @@
+data:
+  data: QM9 # Dataset name: QM9, ZINC250k, etc.
+  dir: "./data" # Data directory
+  batch_size: 1024 # Training batch size
+  max_node_num: 9 # Maximum number of nodes (QM9 specific)
+  max_feat_num: 4 # ORIGINAL node feature dim F_orig (one-hot atom types, etc.)
+  init: atom # Initialization method
+
+train:
+  name: gdss_qm9_cond # Experiment name for conditional inpainting model
+  num_epochs: 3000 # Total training epochs
+  lr: 0.001 # Learning rate
+  lr_schedule: True # Use learning rate scheduling
+  lr_decay: 0.999 # LR decay factor per epoch
+  ema: 0.999 # Exponential moving average decay
+  weight_decay: 0.0 # Weight decay (L2 regularization)
+  reduce_mean: False # How to reduce loss (mean vs sum)
+  eps: 1.0e-5 # Small epsilon for numerical stability in SDE
+  grad_clip: 1.0 # Gradient clipping threshold
+
+  # NEW: helpful for cond_train / logging and masking
+  log_interval: 100 # How often to log training stats (in iterations)
+  keep_ratio: 0.5 # Fraction of real nodes to KEEP as observed context on average
+
+sde:
+  x:
+    type: VP # SDE type for node features: VP, VE, subVP
+    beta_min: 0.1 # Minimum noise schedule beta
+    beta_max: 20.0 # Maximum noise schedule beta
+    num_scales: 1000 # Number of diffusion steps
+  adj:
+    type: VP # SDE type for adjacency matrix
+    beta_min: 0.1
+    beta_max: 20.0
+    num_scales: 1000
+
+model:
+  # CONDITIONAL node score net: ScoreNetworkXCond
+  x:
+    type: ScoreNetworkXCond
+    # original feature dim of x (the one SDE_x runs on, and that z_x lives in)
+    orig_feat_num: 4
+    # conditioned input dim: [x_t (4), x_obs (4), mask (1)] = 9
+    cond_feat_num: 9
+    depth: 3 # Number of GCN layers
+    nhid: 128 # Hidden dimension for node net
+    num_linears: 3
+    c_init: 2
+    c_hid: 8
+    c_final: 4
+    adim: 32
+    num_heads: 4
+    conv: "GCN"
+
+  # CONDITIONAL adjacency score net: ScoreNetworkACond
+  adj:
+    type: ScoreNetworkACond # Thin wrapper around ScoreNetworkA that uses cond features
+    max_feat_num: 9
+    max_node_num: 9
+    depth: 3
+    nhid: 128
+    num_linears: 3
+    c_init: 2
+    c_hid: 8
+    c_final: 4
+    adim: 32
+    num_heads: 4
+    conv: "GCN"
+
+seed: 42 # Random seed for reproducibility

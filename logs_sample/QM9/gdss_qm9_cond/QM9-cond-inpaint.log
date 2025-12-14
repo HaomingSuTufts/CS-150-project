@@ -1,0 +1,25 @@
+QM9-cond-inpaint
+----------------------------------------------------------------------------------------------------
+[QM9]   init=atom (4)   seed=42   batch_size=1024
+----------------------------------------------------------------------------------------------------
+(Reverse)+(Langevin): eps=0.0001 denoise=True ema=False || snr=0.2 seps=0.7 n_steps=1 
+----------------------------------------------------------------------------------------------------
+Conditional inpainting: num_target=1, batch_size=1024, n_batches=1
+(Reverse)+(Langevin): eps=0.0001 denoise=True ema=False || snr=0.2 seps=0.7 n_steps=1 
+----------------------------------------------------------------------------------------------------
+Conditional inpainting: num_target=1, batch_size=1024, n_batches=1
+(Reverse)+(Langevin): eps=0.0001 denoise=True ema=False || snr=0.2 seps=0.7 n_steps=1 
+----------------------------------------------------------------------------------------------------
+Conditional inpainting: num_target=1, batch_size=1024, n_batches=1
+(Reverse)+(Langevin): eps=0.0001 denoise=True ema=False || snr=0.2 seps=0.7 n_steps=1 
+----------------------------------------------------------------------------------------------------
+Conditional inpainting: num_target=1, batch_size=1024, n_batches=1
+[Batch 1/1] done.
+Saved SMILES to: ./logs_sample/QM9\gdss_qm9_cond/cond_inpaint_samples\smiles.txt
+Done.
+(Reverse)+(Langevin): eps=0.0001 denoise=True ema=False || snr=0.2 seps=0.7 n_steps=1 
+----------------------------------------------------------------------------------------------------
+Conditional inpainting: num_target=10, batch_size=1024, n_batches=1
+[Batch 1/1] done.
+Saved SMILES to: ./logs_sample/QM9\gdss_qm9_cond/cond_inpaint_samples\smiles.txt
+Done.

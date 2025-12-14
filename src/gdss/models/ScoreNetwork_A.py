@@ -250,3 +250,43 @@ class ScoreNetworkA(BaselineNetwork):
         score = mask_adjs(score, flags)
 
         return score
+
+
+class ScoreNetworkACond(ScoreNetworkA):
+    """
+    Conditional adjacency score network.
+
+    This is a thin wrapper around ScoreNetworkA, but with a different
+    class name so we can keep the unconditional and conditional configs
+    cleanly separated.
+
+    Pass cond_feat_num as max_feat_num so that x_cond is used as input.
+    """
+
+    def __init__(
+        self,
+        max_feat_num,
+        max_node_num,
+        nhid,
+        num_layers,
+        num_linears,
+        c_init,
+        c_hid,
+        c_final,
+        adim,
+        num_heads=4,
+        conv="GCN",
+    ):
+        super(ScoreNetworkACond, self).__init__(
+            max_feat_num=max_feat_num,
+            max_node_num=max_node_num,
+            nhid=nhid,
+            num_layers=num_layers,
+            num_linears=num_linears,
+            c_init=c_init,
+            c_hid=c_hid,
+            c_final=c_final,
+            adim=adim,
+            num_heads=num_heads,
+            conv=conv,
+        )

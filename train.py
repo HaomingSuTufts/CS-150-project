@@ -1,5 +1,5 @@
 """
-Training script for GDSS (Graph Diffusion via the System of SDEs)
+Training script for GDSS
 
 This script trains the score-based diffusion model from scratch on graph datasets.
 Usage:
